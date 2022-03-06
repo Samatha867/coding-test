@@ -4,8 +4,16 @@
   </head>
   <body>
     <canvas></canvas>
+    <div>
+      Select a pattern
+      <select id="selectPattern">
+      </select>
+      <p id="description"></p>
+      <button id="start">Start</button>
+    </div>
   </body>
   <script type="module">
+    import { parse, next } from './src/engine.js';
     const scale = 4;
     const worldWidth = 480;
     const worldHeight = 240;
@@ -26,5 +34,63 @@
         )
       );
     };
+
+    
+    let interval = null;
+    let data = [];
+    let worldArray = [...Array(worldHeight)].map(a => Array(worldWidth).fill(false));
+    const xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+          data = JSON.parse(xhttp.response);
+          let options = '';
+          data.forEach((option, index) => {
+            options += `<option value="${index}">${option.name}</option>`;
+          });
+          document.getElementById('selectPattern').innerHTML = options;
+          handleChange();
+        }
+    };
+    xhttp.open("GET", "./src/lexicon.json", true);
+    xhttp.send();
+
+    const handleChange = () => {
+      clearInterval(interval);
+      interval = null;
+      worldArray = [...Array(worldHeight)].map(a => Array(worldWidth).fill(false));
+      let currentPattern = data[document.getElementById('selectPattern').value];
+      document.getElementById('description').innerHTML = currentPattern.description;
+        
+      patternToWorld(parse(currentPattern.pattern));
+      render(worldArray);
+    }
+
+    const patternToWorld = (pattern) => {
+      if (!pattern || !pattern[0])
+        return 0;
+      const width = pattern[0].length;
+      const height = pattern.length;
+
+      const startX = Math.floor((worldWidth - width) / 2);
+      const startY = Math.floor((worldHeight - height) / 2);
+
+      for (let i = 0; i < height; i++) {
+        for (let j = 0; j < width; j++) {
+            worldArray[startY + i][startX + j] = pattern[i][j];
+        }
+      }
+    };
+
+    const evolution = () => {
+      if (!interval) {
+        interval = setInterval(() => {
+          worldArray = next(worldArray);
+          render(worldArray);
+        }, 100);
+      }
+    }
+
+    document.getElementById("start").addEventListener("click", evolution);
+    document.getElementById("selectPattern").addEventListener("change", handleChange);
   </script>
 </html>
